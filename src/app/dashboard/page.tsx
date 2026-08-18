@@ -31,6 +31,8 @@ export default async function Dashboard() {
         <a href="/media" className="rounded-lg border px-3 py-1.5">Mídia</a>
         <a href="/calendar" className="rounded-lg border px-3 py-1.5">Calendário</a>
         <a href="/posts" className="rounded-lg border px-3 py-1.5">Publicações</a>
+        <a href="/notifications" className="rounded-lg border px-3 py-1.5">🔔 Notificações</a>
+        <a href="/errors" className="rounded-lg border px-3 py-1.5">Erros</a>
         <a href="/schedule" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-white">+ Agendar</a>
         <a href="/bulk" className="rounded-lg border px-3 py-1.5">Em massa</a>
       </nav>

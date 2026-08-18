@@ -54,10 +54,26 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  accounts  InstagramAccount[]
-  media     Media[]
-  posts     Post[]
-  auditLogs AuditLog[]
+  accounts      InstagramAccount[]
+  media         Media[]
+  posts         Post[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // POST_PUBLISHED, POST_FAILED, MEDIA_READY, ACCOUNT_DISCONNECTED...
+  title     String
+  body      String?
+  resourceId String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
 }
 
 model InstagramAccount {

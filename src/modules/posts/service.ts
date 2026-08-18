@@ -63,6 +63,48 @@ export async function createScheduledPost(input: CreatePostInput) {
   });
 }
 
+// "Tentar novamente" (README 29): nova execução controlada do MESMO post.
+export async function retryPost(userId: string, postId: string) {
+  const post = await prisma.post.findFirst({
+    where: { id: postId, userId, deletedAt: null },
+    include: { account: true, media: true },
+  });
+  if (!post) throw new HttpError(404, "post_not_found");
+  if (!["FAILED", "FAILED_PERMANENTLY", "CANCELLED"].includes(post.status)) {
+    throw new HttpError(409, "post_nao_retentavel");
+  }
+  if (post.account.status !== "CONNECTED") throw new HttpError(422, "account_not_connected");
+  if (post.media.status !== "READY") throw new HttpError(422, "media_not_ready");
+
+  return prisma.post.update({
+    where: { id: postId },
+    data: {
+      status: "SCHEDULED",
+      scheduledAt: new Date(),
+      attemptCount: 0,
+      errorCode: null,
+      errorMessage: null,
+      idempotencyKey: `publish:${crypto.randomUUID()}`, // nova execução
+    },
+  });
+}
+
+// Duplicar/Reutilizar (README 40, 41): cria NOVO post a partir de um existente.
+// Nunca altera o post original. Reaproveita todas as regras de agendamento.
+export async function duplicatePost(userId: string, postId: string, scheduledAtUtc?: Date) {
+  const src = await prisma.post.findFirst({ where: { id: postId, userId, deletedAt: null } });
+  if (!src) throw new HttpError(404, "post_not_found");
+  const at = scheduledAtUtc ?? new Date(Date.now() + 60 * 60 * 1000); // padrão: +1h
+  return createScheduledPost({
+    userId,
+    instagramAccountId: src.instagramAccountId,
+    mediaId: src.mediaId,
+    caption: src.caption ?? undefined,
+    scheduledAtUtc: at,
+    timezone: src.timezone,
+  });
+}
+
 export async function cancelPost(userId: string, postId: string) {
   const post = await prisma.post.findFirst({ where: { id: postId, userId } });
   if (!post) throw new HttpError(404, "post_not_found");

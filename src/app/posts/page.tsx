@@ -48,6 +48,21 @@ export default function PostsPage() {
     load();
   }
 
+  async function retry(id: string) {
+    await fetch(`/api/posts/${id}/retry`, { method: "POST" });
+    load();
+  }
+
+  async function duplicate(id: string) {
+    // Cria novo post +1h (Duplicar/Reutilizar — README 40, 41).
+    const res = await fetch(`/api/posts/${id}/duplicate`, { method: "POST" });
+    if (res.ok) load();
+    else {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error === "time_conflict" ? "Conflito de horário — ajuste depois." : `Falha: ${d.error ?? res.status}`);
+    }
+  }
+
   const fmt = (s: string) => new Date(s).toLocaleString();
 
   return (
@@ -80,11 +95,17 @@ export default function PostsPage() {
                   {p.errorCode && <span className="text-red-500"> · {p.errorCode}</span>}
                 </div>
               </div>
-              {CANCELLABLE.includes(p.status) && (
-                <button onClick={() => cancel(p.id)} className="ml-3 shrink-0 rounded border px-2 py-1 text-xs">
-                  Cancelar
-                </button>
-              )}
+              <div className="ml-3 flex shrink-0 gap-1">
+                {CANCELLABLE.includes(p.status) && (
+                  <button onClick={() => cancel(p.id)} className="rounded border px-2 py-1 text-xs">Cancelar</button>
+                )}
+                {["FAILED", "FAILED_PERMANENTLY", "CANCELLED"].includes(p.status) && (
+                  <button onClick={() => retry(p.id)} className="rounded border px-2 py-1 text-xs">Tentar novamente</button>
+                )}
+                {p.status === "PUBLISHED" && (
+                  <button onClick={() => duplicate(p.id)} className="rounded border px-2 py-1 text-xs">Reutilizar</button>
+                )}
+              </div>
             </li>
           ))}
         </ul>
