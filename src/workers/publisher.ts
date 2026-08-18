@@ -7,6 +7,7 @@ import { decryptToken } from "@/lib/crypto";
 import { presignGet } from "@/lib/storage";
 import {
   publishToInstagram,
+  getPublishingUsage,
   PermanentPublishError,
 } from "@/modules/publishing/instagram";
 
@@ -32,6 +33,33 @@ export function startPublisher(): Worker {
       if (!token) {
         console.log(`[publisher] lock ocupado, pulando ${postId}`);
         return;
+      }
+
+      // Proteção de cota (README 50): se a conta bateu ~25/24h, adia em vez de falhar.
+      if (post.account.accessTokenEncrypted && post.account.externalAccountId) {
+        try {
+          const usage = await getPublishingUsage(
+            decryptToken(post.account.accessTokenEncrypted),
+            post.account.externalAccountId,
+          );
+          if (usage.used >= usage.quota) {
+            await prisma.post.update({
+              where: { id: postId },
+              // Volta para SCHEDULED +1h; não conta como tentativa/falha.
+              data: { status: "SCHEDULED", scheduledAt: new Date(Date.now() + 60 * 60 * 1000), lockedBy: null, lockedAt: null },
+            });
+            await notificationsQueue.add("notify", {
+              userId: post.userId,
+              type: "POST_FAILED",
+              payload: { postId, code: "cota_diaria_atingida" },
+            });
+            await releaseLock(`publish:${postId}`, token);
+            console.log(`[publisher] cota atingida (${usage.used}/${usage.quota}), adiando ${postId}`);
+            return;
+          }
+        } catch {
+          // Falha ao consultar cota não bloqueia a publicação; segue.
+        }
       }
 
       const attemptNumber = post.attemptCount + 1;

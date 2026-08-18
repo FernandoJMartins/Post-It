@@ -61,6 +61,21 @@ function form(params: Record<string, string>): string {
   return new URLSearchParams(params).toString();
 }
 
+// Consulta a cota de publicação (README 50, limite ~25/24h por conta).
+// GET /{ig-user-id}/content_publishing_limit?fields=quota_usage,config
+export async function getPublishingUsage(
+  accessToken: string,
+  igUserId: string,
+): Promise<{ used: number; quota: number }> {
+  const data = await graphFetch<{
+    data?: { quota_usage?: number; config?: { quota_total?: number } }[];
+  }>(
+    `${GRAPH}/${igUserId}/content_publishing_limit?fields=quota_usage,config&access_token=${encodeURIComponent(accessToken)}`,
+  );
+  const row = data.data?.[0];
+  return { used: row?.quota_usage ?? 0, quota: row?.config?.quota_total ?? 25 };
+}
+
 export async function publishToInstagram(args: {
   accessToken: string;
   externalAccountId: string;

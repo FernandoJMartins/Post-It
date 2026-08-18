@@ -49,6 +49,16 @@ async function graphGet<T>(url: string): Promise<T> {
   }
 }
 
+// Verifica se o token ainda é válido (README 10, 47). true = ok, false = expirado/revogado.
+export async function isTokenValid(accessToken: string): Promise<boolean> {
+  try {
+    await graphGet<{ id: string }>(`${GRAPH}/me?fields=id&access_token=${encodeURIComponent(accessToken)}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function exchangeCodeForToken(code: string): Promise<string> {
   const url = `${GRAPH}/oauth/access_token?${new URLSearchParams({
     client_id: process.env.META_CLIENT_ID!,

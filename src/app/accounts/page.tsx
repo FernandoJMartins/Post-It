@@ -140,6 +140,11 @@ export default function AccountsPage() {
                 </div>
               </div>
               <div className="flex gap-2 text-sm">
+                {a.status !== "CONNECTED" && (
+                  <button onClick={connectOAuth} className="rounded border border-yellow-400 px-2 py-1 text-yellow-700 dark:text-yellow-300">
+                    ⚠ Reconectar
+                  </button>
+                )}
                 {a.postingEnabled ? (
                   <button onClick={() => action(a.id, "/pause")} className="rounded border px-2 py-1">
                     Pausar

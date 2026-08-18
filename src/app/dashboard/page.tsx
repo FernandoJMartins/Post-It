@@ -9,12 +9,17 @@ export default async function Dashboard() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
-  const [contas, agendados, publicados, erros] = await Promise.all([
+  const [contas, agendados, publicados, erros, midiaPronta] = await Promise.all([
     prisma.instagramAccount.count({ where: { userId, deletedAt: null, status: "CONNECTED" } }),
     prisma.post.count({ where: { userId, status: "SCHEDULED", deletedAt: null } }),
     prisma.post.count({ where: { userId, status: "PUBLISHED", deletedAt: null } }),
     prisma.post.count({ where: { userId, status: { in: ["FAILED", "FAILED_PERMANENTLY"] }, deletedAt: null } }),
+    prisma.media.count({ where: { userId, status: "READY", deletedAt: null } }),
   ]);
+
+  const passo1 = contas > 0;
+  const passo2 = midiaPronta > 0;
+  const prontoParaAgendar = passo1 && passo2;
 
   const cards = [
     { label: "Contas", value: contas },
@@ -46,6 +51,17 @@ export default async function Dashboard() {
         <a href="/audit" className="rounded-lg border px-3 py-1.5">Auditoria</a>
         <a href="/settings" className="rounded-lg border px-3 py-1.5">⚙️ Config</a>
       </nav>
+
+      {!prontoParaAgendar && (
+        <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm dark:border-indigo-800 dark:bg-indigo-950">
+          <div className="mb-2 font-medium">Comece em 3 passos</div>
+          <ol className="space-y-1">
+            <li>{passo1 ? "✅" : "1️⃣"} <a href="/accounts" className="text-indigo-600 dark:text-indigo-300 underline">Conectar uma conta do Instagram</a></li>
+            <li>{passo2 ? "✅" : "2️⃣"} <a href="/media" className="text-indigo-600 dark:text-indigo-300 underline">Enviar um vídeo</a></li>
+            <li>{prontoParaAgendar ? "✅" : "3️⃣"} <a href="/schedule" className="text-indigo-600 dark:text-indigo-300 underline">Agendar a publicação</a></li>
+          </ol>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {cards.map((c) => (
