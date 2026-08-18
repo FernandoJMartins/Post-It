@@ -1,0 +1,175 @@
+// Postador Insta — schema (fonte da verdade dos agendamentos).
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum AccountStatus {
+  CONNECTED
+  DISCONNECTED
+  TOKEN_EXPIRED
+  REAUTH_REQUIRED
+  ERROR
+  SUSPENDED
+  PAUSED
+}
+
+enum MediaStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  QUEUED
+  PROCESSING
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  FAILED_PERMANENTLY
+  CANCELLED
+  RETRYING
+  UNKNOWN
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  status       UserStatus @default(ACTIVE)
+  timezone     String     @default("America/Fortaleza")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  accounts  InstagramAccount[]
+  media     Media[]
+  posts     Post[]
+  auditLogs AuditLog[]
+}
+
+model InstagramAccount {
+  id                    String        @id @default(cuid())
+  userId                String
+  platform              String        @default("instagram")
+  username              String
+  displayName           String?
+  profilePictureUrl     String?
+  externalAccountId     String?
+  accessTokenEncrypted  String? // AES-256-GCM, nunca em texto puro
+  tokenExpiresAt        DateTime?
+  status                AccountStatus @default(DISCONNECTED)
+  connectionStatus      String?
+  timezone              String        @default("America/Fortaleza")
+  defaultCaption        String?
+  defaultHashtags       String?
+  postingEnabled        Boolean       @default(true)
+  notificationsEnabled  Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  lastSyncAt            DateTime?
+  deletedAt             DateTime?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts Post[]
+
+  @@index([userId])
+}
+
+model Media {
+  id              String      @id @default(cuid())
+  userId          String
+  fileUrl         String?
+  storageKey      String
+  filename        String
+  mimeType        String?
+  sizeBytes       BigInt?
+  durationSeconds Int?
+  width           Int?
+  height          Int?
+  thumbnailUrl    String?
+  status          MediaStatus @default(UPLOADING)
+  tags            String[]    @default([])
+  createdAt       DateTime    @default(now())
+  deletedAt       DateTime?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts Post[]
+
+  @@index([userId])
+}
+
+model Post {
+  id                 String     @id @default(cuid())
+  userId             String
+  instagramAccountId String
+  mediaId            String
+  caption            String?
+  scheduledAt        DateTime // sempre UTC
+  timezone           String     @default("America/Fortaleza")
+  status             PostStatus @default(DRAFT)
+  publishedAt        DateTime?
+  externalPostId     String?
+  idempotencyKey     String     @unique
+  errorCode          String?
+  errorMessage       String?
+  attemptCount       Int        @default(0)
+  lockedBy           String?
+  lockedAt           DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  deletedAt          DateTime?
+
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  InstagramAccount     @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  media    Media                @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  attempts PublicationAttempt[]
+
+  // Index composto usado pelo scheduler (README 114).
+  @@index([instagramAccountId, status, scheduledAt])
+  @@index([userId])
+  @@index([status, scheduledAt])
+}
+
+model PublicationAttempt {
+  id                 String     @id @default(cuid())
+  postId             String
+  attemptNumber      Int
+  startedAt          DateTime   @default(now())
+  finishedAt         DateTime?
+  status             PostStatus
+  errorCode          String?
+  errorMessage       String?
+  externalResponseId String?
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  action       String
+  resourceType String
+  resourceId   String?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
