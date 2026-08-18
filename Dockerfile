@@ -25,9 +25,9 @@ COPY --from=build /app/public ./public
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=build /app/node_modules/prisma ./node_modules/prisma
+# node_modules completo (superset do standalone): necessário para o CLI do Prisma
+# (migrate deploy) que depende de @prisma/config -> effect e outras transitivas.
+COPY --from=build /app/node_modules ./node_modules
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x docker-entrypoint.sh
 EXPOSE 3000
