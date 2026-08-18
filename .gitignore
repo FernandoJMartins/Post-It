@@ -7,3 +7,6 @@ out
 .DS_Store
 coverage
 dist
+test-results
+playwright-report
+.playwright

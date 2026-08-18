@@ -4,6 +4,7 @@ import { redis } from "@/lib/redis";
 import { acquireLock, releaseLock } from "@/lib/lock";
 import { createScheduledPost, cancelPost, updatePost } from "@/modules/posts/service";
 import { processRecurring } from "@/modules/recurring/service";
+import { runReconciliationTick } from "@/workers/reconciliation";
 import { zonedParts } from "@/lib/tz";
 import { HttpError } from "@/lib/errors";
 
@@ -234,6 +235,42 @@ suite("recorrência sob demanda (README 62, 64)", () => {
 
     await prisma.post.deleteMany({ where: { userId } });
     await prisma.recurringSchedule.delete({ where: { id: rec.id } });
+  });
+});
+
+suite("recuperação pós-restart / reconciliação (README 96, 121)", () => {
+  it("post preso em PUBLISHING há >30min vira UNKNOWN", async () => {
+    const p = await createScheduledPost({
+      userId, instagramAccountId: accountId, mediaId: mediaReadyId,
+      scheduledAtUtc: future(), timezone: "America/Fortaleza",
+    });
+    // Simula worker morto no meio da publicação (estado sobrevive no Postgres).
+    await prisma.post.update({
+      where: { id: p.id },
+      data: { status: "PUBLISHING", lockedAt: new Date(Date.now() - 31 * 60 * 1000), lockedBy: "dead-worker" },
+    });
+
+    await runReconciliationTick();
+
+    const after = await prisma.post.findUnique({ where: { id: p.id } });
+    expect(after?.status).toBe("UNKNOWN");
+    expect(after?.lockedBy).toBeNull();
+    await prisma.post.delete({ where: { id: p.id } });
+  });
+
+  it("post PUBLISHING recente NÃO é tocado", async () => {
+    const p = await createScheduledPost({
+      userId, instagramAccountId: accountId, mediaId: mediaReadyId,
+      scheduledAtUtc: future(), timezone: "America/Fortaleza",
+    });
+    await prisma.post.update({
+      where: { id: p.id },
+      data: { status: "PUBLISHING", lockedAt: new Date(), lockedBy: "worker-1" },
+    });
+    await runReconciliationTick();
+    const after = await prisma.post.findUnique({ where: { id: p.id } });
+    expect(after?.status).toBe("PUBLISHING");
+    await prisma.post.delete({ where: { id: p.id } });
   });
 });
 

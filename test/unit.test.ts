@@ -3,6 +3,11 @@ import { encryptToken, decryptToken } from "@/lib/crypto";
 import { validateUpload, PlatformMediaRules } from "@/modules/media/rules";
 import { env } from "@/lib/env";
 import { wallTimeToUtc, zonedParts } from "@/lib/tz";
+import {
+  publishToInstagram,
+  PermanentPublishError,
+  TemporaryPublishError,
+} from "@/modules/publishing/instagram";
 
 describe("crypto de tokens (README 11)", () => {
   it("faz roundtrip encrypt/decrypt", () => {
@@ -51,6 +56,20 @@ describe("timezone helper (README 20)", () => {
     expect(p.d).toBe(17);
     expect(p.weekday).toBeGreaterThanOrEqual(0);
     expect(p.weekday).toBeLessThanOrEqual(6);
+  });
+});
+
+describe("classificação de erro de publicação (README 28, 123, 124)", () => {
+  it("token ausente/expirado é erro PERMANENTE (não retenta)", async () => {
+    await expect(
+      publishToInstagram({ accessToken: "", externalAccountId: "1", mediaUrl: "u", idempotencyKey: "k" }),
+    ).rejects.toBeInstanceOf(PermanentPublishError);
+  });
+
+  it("erros permanente e temporário são tipos distintos", () => {
+    expect(new PermanentPublishError("invalid_token")).toBeInstanceOf(PermanentPublishError);
+    expect(new TemporaryPublishError("timeout")).toBeInstanceOf(TemporaryPublishError);
+    expect(new TemporaryPublishError("timeout")).not.toBeInstanceOf(PermanentPublishError);
   });
 });
 
