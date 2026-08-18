@@ -26,22 +26,34 @@ export async function GET(req: Request) {
       return Response.redirect(`${base}/accounts?error=invalid_state`);
     }
 
-    const { token: shortToken } = await exchangeCodeForToken(code);
-    const { token, expiresInSec } = await toLongLivedToken(shortToken);
-    const ig = await getProfile(token);
+    // Instagram anexa "#_" ao code no redirect; remove qualquer sujeira.
+    const cleanCode = code.split("#")[0];
 
-    await upsertConnectedAccount({
-      userId: user.id,
-      externalAccountId: ig.igUserId,
-      username: `@${ig.username}`,
-      displayName: ig.name,
-      profilePictureUrl: ig.profilePictureUrl,
-      // Token do próprio Instagram (long-lived) usado para publicar.
-      accessToken: token,
-      expiresInSec,
-    });
-
-    return Response.redirect(`${base}/accounts?connected=1`);
+    // Cada etapa marca sua origem no erro, pra diagnosticar (ex.: "exchange: ...").
+    let step = "exchange";
+    try {
+      const { token: shortToken, userId } = await exchangeCodeForToken(cleanCode);
+      step = "long_lived";
+      const { token, expiresInSec } = await toLongLivedToken(shortToken);
+      step = "profile";
+      const ig = await getProfile(token, userId);
+      step = "save";
+      await upsertConnectedAccount({
+        userId: user.id,
+        externalAccountId: ig.igUserId,
+        username: `@${ig.username}`,
+        displayName: ig.name,
+        profilePictureUrl: ig.profilePictureUrl,
+        // Token do próprio Instagram (long-lived) usado para publicar.
+        accessToken: token,
+        expiresInSec,
+      });
+      return Response.redirect(`${base}/accounts?connected=1`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "erro";
+      console.error(`[oauth callback] falha na etapa ${step}:`, msg);
+      return Response.redirect(`${base}/accounts?error=${encodeURIComponent(`${step}: ${msg}`)}`);
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "erro";
     return Response.redirect(`${base}/accounts?error=${encodeURIComponent(msg)}`);

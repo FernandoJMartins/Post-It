@@ -106,18 +106,17 @@ export type IgProfile = {
   profilePictureUrl?: string;
 };
 
-// Perfil da conta logada.
-export async function getProfile(token: string): Promise<IgProfile> {
+// Perfil da conta logada. Consulta pelo nó do user_id (mais confiável que /me nesse fluxo).
+export async function getProfile(token: string, userId?: string): Promise<IgProfile> {
   return withTimeout(async (signal) => {
-    const url = `${IG_GRAPH}/me?fields=user_id,username,name,profile_picture_url&access_token=${encodeURIComponent(token)}`;
+    const node = userId ? encodeURIComponent(userId) : "me";
+    const url = `${IG_GRAPH}/${node}?fields=user_id,username&access_token=${encodeURIComponent(token)}`;
     const res = await fetch(url, { signal });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error?.message ?? `profile_error_${res.status}`);
     return {
-      igUserId: String(data.user_id ?? data.id),
+      igUserId: String(data.user_id ?? data.id ?? userId),
       username: data.username,
-      name: data.name,
-      profilePictureUrl: data.profile_picture_url,
     };
   });
 }
