@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { presignGet, deleteObject } from "@/lib/storage";
-import { HttpError } from "@/lib/session";
+import { HttpError } from "@/lib/errors";
 
 export async function listMedia(userId: string) {
   const items = await prisma.media.findMany({

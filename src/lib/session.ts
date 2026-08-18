@@ -1,4 +1,8 @@
 import { auth } from "@/auth";
+import { HttpError } from "@/lib/errors";
+
+// Reexporta para compatibilidade com route handlers existentes.
+export { HttpError, errorResponse } from "@/lib/errors";
 
 // Obtém o usuário autenticado ou lança 401 (uso em route handlers).
 export async function requireUser(): Promise<{ id: string }> {
@@ -7,18 +11,4 @@ export async function requireUser(): Promise<{ id: string }> {
     throw new HttpError(401, "unauthorized");
   }
   return { id: session.user.id };
-}
-
-export class HttpError extends Error {
-  constructor(public status: number, public code: string, message?: string) {
-    super(message ?? code);
-  }
-}
-
-export function errorResponse(e: unknown): Response {
-  if (e instanceof HttpError) {
-    return Response.json({ error: e.code, message: e.message }, { status: e.status });
-  }
-  console.error(e);
-  return Response.json({ error: "internal_error" }, { status: 500 });
 }

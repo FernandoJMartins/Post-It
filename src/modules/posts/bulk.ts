@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { HttpError } from "@/lib/session";
+import { HttpError } from "@/lib/errors";
 
 type BulkInput = {
   userId: string;

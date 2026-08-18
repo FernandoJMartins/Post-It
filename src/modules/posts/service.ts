@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { HttpError } from "@/lib/session";
+import { HttpError } from "@/lib/errors";
 
 // Regras de agendamento (README 21, 65). Toda validação no backend.
 type CreatePostInput = {

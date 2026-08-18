@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { encryptToken } from "@/lib/crypto";
-import { HttpError } from "@/lib/session";
+import { HttpError } from "@/lib/errors";
 import type { AccountStatus } from "@prisma/client";
 
 // Gerenciamento de contas (README 9, 10, 36, 47). Sempre escopado por userId.
