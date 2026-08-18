@@ -8,6 +8,7 @@ const SCOPES = [
   "instagram_basic",
   "instagram_content_publish",
   "pages_show_list",
+  "pages_read_engagement", // necessário para ler instagram_business_account da Página
   "business_management",
 ];
 
