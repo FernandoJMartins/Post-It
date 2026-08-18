@@ -32,6 +32,22 @@ test("navega para Contas e Mídia a partir do dashboard", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /Biblioteca de mídia/ })).toBeVisible();
 });
 
+test("logout volta para a tela de login", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByPlaceholder("email").fill("demo@postador.dev");
+  await page.getByPlaceholder("senha").fill("demo12345");
+  await page.getByRole("button", { name: "Entrar" }).click();
+  await page.waitForURL("**/dashboard");
+
+  await page.getByRole("button", { name: "Sair" }).click();
+  await page.waitForURL("**/login");
+  await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
+
+  // Sessão encerrada: acessar rota protegida redireciona para login.
+  await page.goto("/dashboard");
+  await page.waitForURL("**/login");
+});
+
 test("agendar exige conta conectada e vídeo pronto", async ({ page }) => {
   await page.goto("/login");
   await page.getByPlaceholder("email").fill("demo@postador.dev");

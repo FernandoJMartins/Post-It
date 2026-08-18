@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import LogoutButton from "@/components/LogoutButton";
 
 // Dashboard (README 44). Métricas básicas do MVP.
 export default async function Dashboard() {
@@ -24,7 +25,13 @@ export default async function Dashboard() {
 
   return (
     <main className="mx-auto max-w-4xl p-6">
-      <h1 className="mb-4 text-2xl font-bold">Dashboard</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div className="flex items-center gap-3">
+          <span className="hidden text-sm text-neutral-500 sm:inline">{session.user.email}</span>
+          <LogoutButton />
+        </div>
+      </div>
 
       <nav className="mb-6 flex flex-wrap gap-2 text-sm">
         <a href="/accounts" className="rounded-lg border px-3 py-1.5">Contas</a>
