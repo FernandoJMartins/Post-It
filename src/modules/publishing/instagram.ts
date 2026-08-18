@@ -4,7 +4,8 @@
 //   1) POST /{ig-user-id}/media           -> creation_id (container)
 //   2) GET  /{creation_id}?fields=status_code  (polling até FINISHED)
 //   3) POST /{ig-user-id}/media_publish   -> id publicado
-const GRAPH = "https://graph.facebook.com/v21.0";
+// Instagram Login flow: publicação via graph.instagram.com com o token do próprio IG.
+const GRAPH = "https://graph.instagram.com";
 
 export type PublishResult = { externalPostId: string };
 

@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/session";
 import {
   exchangeCodeForToken,
   toLongLivedToken,
-  findInstagramAccount,
+  getProfile,
 } from "@/lib/meta";
 import { upsertConnectedAccount } from "@/modules/accounts/service";
 
@@ -26,9 +26,9 @@ export async function GET(req: Request) {
       return Response.redirect(`${base}/accounts?error=invalid_state`);
     }
 
-    const shortToken = await exchangeCodeForToken(code);
+    const { token: shortToken } = await exchangeCodeForToken(code);
     const { token, expiresInSec } = await toLongLivedToken(shortToken);
-    const ig = await findInstagramAccount(token);
+    const ig = await getProfile(token);
 
     await upsertConnectedAccount({
       userId: user.id,
@@ -36,8 +36,8 @@ export async function GET(req: Request) {
       username: `@${ig.username}`,
       displayName: ig.name,
       profilePictureUrl: ig.profilePictureUrl,
-      // Guardamos o token da Página, usado para publicar em nome da conta IG.
-      accessToken: ig.pageAccessToken,
+      // Token do próprio Instagram (long-lived) usado para publicar.
+      accessToken: token,
       expiresInSec,
     });
 

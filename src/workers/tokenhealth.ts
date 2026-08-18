@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db";
-import { decryptToken } from "@/lib/crypto";
-import { isTokenValid, metaConfigured } from "@/lib/meta";
+import { decryptToken, encryptToken } from "@/lib/crypto";
+import { isTokenValid, refreshLongLivedToken, metaConfigured } from "@/lib/meta";
 import { notificationsQueue } from "@/lib/queues";
+
+const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
 
 // Saúde dos tokens (README 10, 11, 47): detecta expiração/revogação e marca REAUTH_REQUIRED.
 export async function runTokenHealthTick(): Promise<number> {
@@ -35,6 +37,25 @@ export async function runTokenHealthTick(): Promise<number> {
         payload: { accountId: acc.id },
       });
       flagged++;
+      continue;
+    }
+
+    // Renova o token long-lived se estiver perto de expirar (README 10, 11).
+    const expiringSoon = acc.tokenExpiresAt && acc.tokenExpiresAt.getTime() - Date.now() < TEN_DAYS_MS;
+    if (expiringSoon) {
+      try {
+        const { token: novo, expiresInSec } = await refreshLongLivedToken(token);
+        await prisma.instagramAccount.update({
+          where: { id: acc.id },
+          data: {
+            accessTokenEncrypted: encryptToken(novo),
+            tokenExpiresAt: new Date(Date.now() + expiresInSec * 1000),
+            lastSyncAt: new Date(),
+          },
+        });
+      } catch {
+        // Falha ao renovar não é fatal aqui; a próxima checagem pega se invalidar.
+      }
     }
   }
   return flagged;
