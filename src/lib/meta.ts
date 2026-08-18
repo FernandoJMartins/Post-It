@@ -15,11 +15,12 @@ export function metaConfigured(): boolean {
   return !!(process.env.META_CLIENT_ID && process.env.META_CLIENT_SECRET);
 }
 
-function redirectUri(): string {
-  return (
-    process.env.META_REDIRECT_URI ??
-    `${process.env.APP_URL ?? "http://localhost:3000"}/api/accounts/callback`
-  );
+// redirect_uri usado no OAuth. Precisa bater EXATAMENTE com a allowlist do app Meta.
+// Normaliza barras finais para evitar '...app//api/accounts/callback' (que o Facebook bloqueia).
+export function redirectUri(): string {
+  if (process.env.META_REDIRECT_URI) return process.env.META_REDIRECT_URI.trim().replace(/\/+$/, "");
+  const base = (process.env.APP_URL ?? "http://localhost:3000").trim().replace(/\/+$/, "");
+  return `${base}/api/accounts/callback`;
 }
 
 export function buildAuthorizeUrl(state: string): string {

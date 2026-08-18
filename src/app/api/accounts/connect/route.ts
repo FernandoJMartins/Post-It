@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { requireUser, errorResponse, HttpError } from "@/lib/session";
-import { buildAuthorizeUrl, metaConfigured } from "@/lib/meta";
+import { buildAuthorizeUrl, metaConfigured, redirectUri } from "@/lib/meta";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,10 @@ export async function POST() {
       path: "/",
     });
 
-    return Response.json({ url: buildAuthorizeUrl(state) });
+    const ruri = redirectUri();
+    // Loga o redirect_uri exato para conferência com a allowlist do app Meta.
+    console.log(`[oauth] redirect_uri enviado: ${ruri}`);
+    return Response.json({ url: buildAuthorizeUrl(state), redirectUri: ruri });
   } catch (e) {
     return errorResponse(e);
   }

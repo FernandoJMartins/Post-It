@@ -34,6 +34,11 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const [manual, setManual] = useState("");
+  const [oauth, setOauth] = useState<{ configured: boolean; redirectUri: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/accounts/oauth-info").then((r) => r.json()).then(setOauth).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -157,6 +162,16 @@ export default function AccountsPage() {
           <button className="rounded-lg border px-3 py-2 text-sm">Conectar (dev)</button>
         </form>
       </div>
+
+      {oauth && (
+        <div className="mb-6 rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="mb-1 font-medium">OAuth {oauth.configured ? "✅ configurado" : "⚠️ sem META_CLIENT_ID/SECRET"}</div>
+          <div className="text-neutral-500">
+            Cole este <b>redirect_uri</b> idêntico na allowlist do app Meta (Login do Facebook → URIs válidos):
+          </div>
+          <code className="mt-1 block break-all rounded bg-neutral-100 p-2 dark:bg-neutral-800">{oauth.redirectUri}</code>
+        </div>
+      )}
 
       <div className="mb-6 rounded-xl border p-4 dark:border-neutral-800">
         <div className="mb-2 text-sm font-medium">Grupos de contas</div>
