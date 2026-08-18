@@ -35,6 +35,7 @@ export default async function Dashboard() {
         <a href="/errors" className="rounded-lg border px-3 py-1.5">Erros</a>
         <a href="/schedule" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-white">+ Agendar</a>
         <a href="/bulk" className="rounded-lg border px-3 py-1.5">Em massa</a>
+        <a href="/recurring" className="rounded-lg border px-3 py-1.5">Recorrência</a>
       </nav>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

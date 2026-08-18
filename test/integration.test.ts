@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { redis } from "@/lib/redis";
 import { acquireLock, releaseLock } from "@/lib/lock";
 import { createScheduledPost, cancelPost, updatePost } from "@/modules/posts/service";
+import { processRecurring } from "@/modules/recurring/service";
+import { zonedParts } from "@/lib/tz";
 import { HttpError } from "@/lib/errors";
 
 // Requer Postgres + Redis (docker compose up). Se indisponível, a suíte é pulada.
@@ -202,6 +204,36 @@ suite("editar / remarcar post (README 39, 69)", () => {
       updatePost(userId, p.id, { caption: "x" }),
     ).rejects.toMatchObject({ code: "post_nao_editavel" });
     await prisma.post.delete({ where: { id: p.id } });
+  });
+});
+
+suite("recorrência sob demanda (README 62, 64)", () => {
+  it("cria uma ocorrência quando vence e não duplica", async () => {
+    // Horário 00:00 de hoje no fuso já passou -> deve disparar.
+    const rec = await prisma.recurringSchedule.create({
+      data: {
+        userId, accountId, name: "diario", rule: "DAILY",
+        timeOfDay: "00:00", timezone: "America/Fortaleza",
+        mediaIds: [mediaReadyId], cursor: 0, active: true,
+      },
+    });
+
+    const c1 = await processRecurring();
+    const c2 = await processRecurring(); // mesma ocorrência não recria
+    expect(c1).toBeGreaterThanOrEqual(1);
+
+    const posts = await prisma.post.findMany({ where: { userId, mediaId: mediaReadyId, status: "SCHEDULED" } });
+    // Exatamente 1 post da recorrência de hoje (idempotência por lastOccurrenceKey).
+    const today = zonedParts("America/Fortaleza", new Date());
+    const created = posts.filter((p) => {
+      const d = zonedParts("America/Fortaleza", new Date(p.scheduledAt));
+      return d.d === today.d && p.timezone === "America/Fortaleza";
+    });
+    expect(created.length).toBe(1);
+    expect(c2).toBe(0);
+
+    await prisma.post.deleteMany({ where: { userId } });
+    await prisma.recurringSchedule.delete({ where: { id: rec.id } });
   });
 });
 

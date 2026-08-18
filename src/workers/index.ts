@@ -4,6 +4,7 @@ import { startPublisher } from "./publisher";
 import { startNotifications } from "./notifications";
 import { startReconciliation } from "./reconciliation";
 import { startMedia } from "./media";
+import { startRecurring } from "./recurring";
 
 // Processo de workers (README 25, 138). Descartável e reiniciável sem perda.
 async function main() {
@@ -12,11 +13,13 @@ async function main() {
   const media = startMedia();
   const notifications = startNotifications();
   const reconciliation = startReconciliation();
+  const recurring = startRecurring();
 
   const shutdown = async () => {
     console.log("[workers] encerrando...");
     clearInterval(scheduler);
     clearInterval(reconciliation);
+    clearInterval(recurring);
     await Promise.allSettled([publisher.close(), media.close(), notifications.close()]);
     process.exit(0);
   };
