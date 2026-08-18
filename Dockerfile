@@ -17,6 +17,10 @@ RUN npx prisma generate && npm run build
 FROM node:22-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Next standalone (server.js) escuta em process.env.HOSTNAME; o Docker define
+# HOSTNAME com o ID do container, o que impede o proxy do Railway de alcancar o app.
+# Forcar 0.0.0.0 para escutar em todas as interfaces.
+ENV HOSTNAME=0.0.0.0
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/public ./public
 COPY --from=build /app/.next/standalone ./
