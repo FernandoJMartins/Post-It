@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { encryptToken, decryptToken } from "@/lib/crypto";
-import { validateUpload, PlatformMediaRules } from "@/modules/media/rules";
+import { validateUpload, validateReels, PlatformMediaRules } from "@/modules/media/rules";
+import { sniffMime } from "@/modules/media/process";
 import { env } from "@/lib/env";
 import { wallTimeToUtc, zonedParts } from "@/lib/tz";
 import {
@@ -39,6 +40,36 @@ describe("PlatformMediaRules (README 15)", () => {
   });
   it("rejeita arquivo acima do limite", () => {
     expect(validateUpload("video/mp4", PlatformMediaRules.maxSizeBytes + 1)).toBe("arquivo_muito_grande");
+  });
+});
+
+describe("MIME real por assinatura (README 52)", () => {
+  const ftyp = (brand: string) =>
+    Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from("ftyp"), Buffer.from(brand)]);
+
+  it("detecta mp4 pelo box ftyp", () => {
+    expect(sniffMime(ftyp("mp42"))).toBe("video/mp4");
+  });
+  it("detecta mov (brand qt)", () => {
+    expect(sniffMime(ftyp("qt  "))).toBe("video/quicktime");
+  });
+  it("retorna null para conteúdo desconhecido", () => {
+    expect(sniffMime(Buffer.from("isso nao e um mp4"))).toBeNull();
+  });
+});
+
+describe("regras de Reels (README 15)", () => {
+  it("aceita vídeo 9:16 de 30s", () => {
+    expect(validateReels(30, 1080, 1920)).toBeNull();
+  });
+  it("rejeita muito curto", () => {
+    expect(validateReels(1, 1080, 1920)).toBe("reels_muito_curto");
+  });
+  it("rejeita muito longo", () => {
+    expect(validateReels(1000, 1080, 1920)).toBe("reels_muito_longo");
+  });
+  it("rejeita proporção absurda", () => {
+    expect(validateReels(30, 5000, 100)).toBe("reels_proporcao_invalida");
   });
 });
 

@@ -53,3 +53,26 @@ export function presignGet(key: string, expiresIn = MAX_PRESIGN_SECONDS): Promis
 export async function deleteObject(key: string): Promise<void> {
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
+
+// Baixa o objeto inteiro como Buffer (uso no processamento de mídia).
+export async function getObjectBuffer(key: string): Promise<Buffer> {
+  const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const chunks: Buffer[] = [];
+  for await (const chunk of res.Body as AsyncIterable<Buffer>) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
+
+// Baixa só os primeiros bytes (para checar assinatura de arquivo / MIME real).
+export async function getObjectHead(key: string, bytes = 16): Promise<Buffer> {
+  const res = await s3.send(
+    new GetObjectCommand({ Bucket: bucket, Key: key, Range: `bytes=0-${bytes - 1}` }),
+  );
+  const chunks: Buffer[] = [];
+  for await (const chunk of res.Body as AsyncIterable<Buffer>) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
+
+export async function putObject(key: string, body: Buffer, contentType: string): Promise<void> {
+  await ensureBucket();
+  await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
+}

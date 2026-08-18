@@ -5,6 +5,7 @@ import { QUEUE, type PublishJob, notificationsQueue } from "@/lib/queues";
 import { acquireLock, releaseLock } from "@/lib/lock";
 import { decryptToken } from "@/lib/crypto";
 import { presignGet } from "@/lib/storage";
+import { validateReels } from "@/modules/media/rules";
 import {
   publishToInstagram,
   getPublishingUsage,
@@ -75,6 +76,15 @@ export function startPublisher(): Worker {
         if (!post.account.accessTokenEncrypted) {
           throw new PermanentPublishError("invalid_token");
         }
+
+        // Valida limites de Reels antes de gastar chamada à Meta (README 15).
+        const reelsError = validateReels(
+          post.media.durationSeconds,
+          post.media.width,
+          post.media.height,
+        );
+        if (reelsError) throw new PermanentPublishError(reelsError);
+
         const accessToken = decryptToken(post.account.accessTokenEncrypted);
 
         // URL pública fresca para a Meta baixar o vídeo (presigned, não expira no meio).
