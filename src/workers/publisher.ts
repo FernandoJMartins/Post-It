@@ -4,6 +4,7 @@ import { redis } from "@/lib/redis";
 import { QUEUE, type PublishJob, notificationsQueue } from "@/lib/queues";
 import { acquireLock, releaseLock } from "@/lib/lock";
 import { decryptToken } from "@/lib/crypto";
+import { presignGet } from "@/lib/storage";
 import {
   publishToInstagram,
   PermanentPublishError,
@@ -48,10 +49,15 @@ export function startPublisher(): Worker {
         }
         const accessToken = decryptToken(post.account.accessTokenEncrypted);
 
+        // URL pública fresca para a Meta baixar o vídeo (presigned, não expira no meio).
+        const mediaUrl = post.media.storageKey
+          ? await presignGet(post.media.storageKey)
+          : post.media.fileUrl ?? "";
+
         const result = await publishToInstagram({
           accessToken,
           externalAccountId: post.account.externalAccountId ?? "",
-          mediaUrl: post.media.fileUrl ?? "",
+          mediaUrl,
           caption: post.caption ?? undefined,
           idempotencyKey: post.idempotencyKey,
         });
