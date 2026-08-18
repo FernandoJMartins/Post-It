@@ -21,6 +21,7 @@ export default function RegisterPage() {
         name: form.get("name"),
         email: form.get("email"),
         password: form.get("password"),
+        consent: form.get("consent") === "on",
       }),
     });
     setLoading(false);
@@ -38,6 +39,10 @@ export default function RegisterPage() {
         <input name="name" required placeholder="nome" className="rounded border p-2 dark:bg-neutral-900" />
         <input name="email" type="email" required placeholder="email" className="rounded border p-2 dark:bg-neutral-900" />
         <input name="password" type="password" required minLength={8} placeholder="senha (mín. 8)" className="rounded border p-2 dark:bg-neutral-900" />
+        <label className="flex items-start gap-2 text-xs text-neutral-500">
+          <input name="consent" type="checkbox" required className="mt-0.5" />
+          <span>Li e aceito a <a href="/privacy" className="text-indigo-500">Política de Privacidade</a> e o tratamento dos meus dados (LGPD).</span>
+        </label>
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button disabled={loading} className="rounded bg-indigo-600 p-2 text-white disabled:opacity-50">
           {loading ? "Criando..." : "Criar conta"}

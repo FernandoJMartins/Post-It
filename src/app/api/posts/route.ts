@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser, errorResponse, HttpError } from "@/lib/session";
 import { rateLimit } from "@/lib/rate-limit";
 import { createScheduledPost } from "@/modules/posts/service";
+import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
       scheduledAtUtc: new Date(body.scheduledAt),
       timezone: body.timezone,
     });
+    await audit(user.id, "POST_SCHEDULED", "post", post.id, req);
     return Response.json(post, { status: 201 });
   } catch (e) {
     if (e instanceof z.ZodError) {

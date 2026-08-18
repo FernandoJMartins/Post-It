@@ -10,6 +10,7 @@ const schema = z.object({
   name: z.string().min(2).max(120),
   email: z.string().email(),
   password: z.string().min(8).max(200),
+  consent: z.literal(true), // consentimento LGPD obrigatório (README 117)
 });
 
 export async function POST(req: Request) {

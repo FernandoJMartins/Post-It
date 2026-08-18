@@ -78,10 +78,19 @@ export async function upsertConnectedAccount(input: {
 export async function setPaused(userId: string, id: string, paused: boolean) {
   const acc = await ownedAccount(userId, id);
   // Pausar não muda status de conexão; controla postingEnabled (README 36).
-  return prisma.instagramAccount.update({
+  const updated = await prisma.instagramAccount.update({
     where: { id: acc.id },
     data: { postingEnabled: !paused },
   });
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      action: paused ? "ACCOUNT_PAUSED" : "ACCOUNT_RESUMED",
+      resourceType: "instagram_account",
+      resourceId: id,
+    },
+  });
+  return updated;
 }
 
 export async function softDeleteAccount(userId: string, id: string) {

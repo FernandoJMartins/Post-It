@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { redis } from "@/lib/redis";
 import { QUEUE, type MediaJob, notificationsQueue } from "@/lib/queues";
 import { s3, presignGet } from "@/lib/storage";
+import { scanObject } from "@/lib/antivirus";
 
 const bucket = process.env.STORAGE_BUCKET ?? "postador-media";
 
@@ -21,6 +22,15 @@ export function startMedia(): Worker {
         const head = await s3.send(
           new HeadObjectCommand({ Bucket: bucket, Key: media.storageKey }),
         );
+
+        // Verificação antivírus antes de liberar (README 53).
+        const scan = await scanObject(media.storageKey);
+        if (!scan.clean) {
+          await prisma.media.update({ where: { id: mediaId }, data: { status: "FAILED" } });
+          console.warn(`[media] ${mediaId} reprovado no antivirus (${scan.engine})`);
+          return;
+        }
+
         const fileUrl = await presignGet(media.storageKey);
 
         // TODO: extrair duração/resolução e gerar thumbnail (ffmpeg/ffprobe).
