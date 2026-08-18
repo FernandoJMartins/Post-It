@@ -43,7 +43,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: sh -c "npx prisma migrate deploy && node server.js"
+    # Usa o entrypoint da imagem (migrate deploy + start).
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://postador:postador@postgres:5432/postador?schema=public

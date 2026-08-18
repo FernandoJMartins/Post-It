@@ -28,5 +28,8 @@ COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=build /app/node_modules/prisma ./node_modules/prisma
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x docker-entrypoint.sh
 EXPOSE 3000
-CMD ["sh", "-c", "HOSTNAME=0.0.0.0 node server.js"]
+# Roda migrations e depois sobe o app (ver docker-entrypoint.sh).
+CMD ["sh", "./docker-entrypoint.sh"]
