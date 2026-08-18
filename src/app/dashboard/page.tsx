@@ -29,6 +29,7 @@ export default async function Dashboard() {
       <nav className="mb-6 flex flex-wrap gap-2 text-sm">
         <a href="/accounts" className="rounded-lg border px-3 py-1.5">Contas</a>
         <a href="/media" className="rounded-lg border px-3 py-1.5">Mídia</a>
+        <a href="/calendar" className="rounded-lg border px-3 py-1.5">Calendário</a>
         <a href="/posts" className="rounded-lg border px-3 py-1.5">Publicações</a>
         <a href="/schedule" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-white">+ Agendar</a>
       </nav>
