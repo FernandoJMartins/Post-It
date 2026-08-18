@@ -16,8 +16,12 @@ export default auth((req) => {
   if (path.startsWith("/api") && !path.startsWith("/api/auth") && MUTATING.includes(req.method)) {
     const origin = req.headers.get("origin");
     if (origin) {
+      // Atrás de proxy (Railway/Vercel), o host público chega em x-forwarded-host;
+      // nextUrl.host pode ser o host interno. Comparamos com o host que o cliente usou.
+      const expectedHost =
+        req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? nextUrl.host;
       try {
-        if (new URL(origin).host !== nextUrl.host) {
+        if (new URL(origin).host !== expectedHost) {
           return Response.json({ error: "csrf_origin_mismatch" }, { status: 403 });
         }
       } catch {
