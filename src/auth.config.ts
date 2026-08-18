@@ -1,7 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 
 // Config leve, segura para o edge (middleware): sem argon2/Prisma.
-// A verificação de credenciais fica só em auth.ts (runtime Node).
+// A verificação de credenciais fica só em auth.ts (runtime Node).!
 export const authConfig = {
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 7 },
   trustHost: true,
