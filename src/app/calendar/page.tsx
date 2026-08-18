@@ -36,12 +36,34 @@ export default function CalendarPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
 
+  const [drag, setDrag] = useState<Post | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     const from = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
     const to = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59);
     const res = await fetch(`/api/calendar?from=${from.toISOString()}&to=${to.toISOString()}`);
     if (res.ok) setPosts(await res.json());
   }, [cursor]);
+
+  // Drag & drop: solta o post em outro dia, mantendo a hora original (README 39).
+  async function dropOn(day: number) {
+    if (!drag) return;
+    const orig = new Date(drag.scheduledAt);
+    const target = new Date(cursor.getFullYear(), cursor.getMonth(), day, orig.getHours(), orig.getMinutes());
+    setDrag(null);
+    setMsg(null);
+    const res = await fetch(`/api/posts/${drag.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ scheduledAt: target.toISOString() }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setMsg(d.error === "time_conflict" ? "Conflito de horário nesse dia." : d.error === "scheduled_in_past" ? "Não dá pra remarcar no passado." : d.error === "post_nao_editavel" ? "Post não pode mais ser editado." : `Falha: ${d.error ?? res.status}`);
+    }
+    load();
+  }
 
   useEffect(() => {
     load();
@@ -89,6 +111,9 @@ export default function CalendarPage() {
         <button onClick={() => move(1)} className="rounded border px-3 py-1">→</button>
       </div>
 
+      {msg && <p className="mb-2 text-sm text-red-500">{msg}</p>}
+      {drag && <p className="mb-2 text-xs text-indigo-500">Arraste para um dia para remarcar “{drag.media.filename}”.</p>}
+
       <div className="grid grid-cols-7 gap-1 text-center text-xs text-neutral-500">
         {WEEKDAYS.map((w) => <div key={w} className="py-1">{w}</div>)}
       </div>
@@ -101,9 +126,11 @@ export default function CalendarPage() {
             <button
               key={i}
               onClick={() => setSelected(key)}
+              onDragOver={(e) => drag && e.preventDefault()}
+              onDrop={() => dropOn(day)}
               className={`min-h-16 rounded border p-1 text-left align-top text-xs dark:border-neutral-800 ${
                 isToday(day) ? "border-indigo-500" : ""
-              } ${selected === key ? "ring-2 ring-indigo-500" : ""}`}
+              } ${selected === key ? "ring-2 ring-indigo-500" : ""} ${drag ? "hover:bg-indigo-50 dark:hover:bg-indigo-950" : ""}`}
             >
               <div className={isToday(day) ? "font-bold text-indigo-500" : ""}>{day}</div>
               <div className="mt-1 flex flex-wrap gap-0.5">
@@ -125,7 +152,13 @@ export default function CalendarPage() {
           ) : (
             <ul className="space-y-2">
               {selectedPosts.map((p) => (
-                <li key={p.id} className="flex items-center gap-2 rounded-lg border p-2 text-sm dark:border-neutral-800">
+                <li
+                  key={p.id}
+                  draggable={["SCHEDULED", "DRAFT", "FAILED", "CANCELLED"].includes(p.status)}
+                  onDragStart={() => setDrag(p)}
+                  onDragEnd={() => setDrag(null)}
+                  className="flex cursor-grab items-center gap-2 rounded-lg border p-2 text-sm active:cursor-grabbing dark:border-neutral-800"
+                >
                   <span className={`h-2 w-2 rounded-full ${STATUS_DOT[p.status] ?? "bg-neutral-400"}`} />
                   <span className="font-medium">{new Date(p.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                   <span className="text-neutral-500">{p.account.username} · {p.media.filename}</span>

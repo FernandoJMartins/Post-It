@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { prisma } from "@/lib/db";
 import { redis } from "@/lib/redis";
 import { acquireLock, releaseLock } from "@/lib/lock";
-import { createScheduledPost, cancelPost } from "@/modules/posts/service";
+import { createScheduledPost, cancelPost, updatePost } from "@/modules/posts/service";
 import { HttpError } from "@/lib/errors";
 
 // Requer Postgres + Redis (docker compose up). Se indisponível, a suíte é pulada.
@@ -165,6 +165,42 @@ suite("regras de agendamento (README 21)", () => {
         timezone: "America/Fortaleza",
       }),
     ).rejects.toMatchObject({ code: "time_conflict" });
+    await prisma.post.delete({ where: { id: p.id } });
+  });
+});
+
+suite("editar / remarcar post (README 39, 69)", () => {
+  it("remarca para novo horário futuro", async () => {
+    const p = await createScheduledPost({
+      userId, instagramAccountId: accountId, mediaId: mediaReadyId,
+      scheduledAtUtc: future(), timezone: "America/Fortaleza",
+    });
+    const novo = new Date(Date.now() + 2 * 3_600_000);
+    const upd = await updatePost(userId, p.id, { scheduledAtUtc: novo });
+    expect(new Date(upd.scheduledAt).getTime()).toBe(novo.getTime());
+    await prisma.post.delete({ where: { id: p.id } });
+  });
+
+  it("rejeita remarcar para o passado", async () => {
+    const p = await createScheduledPost({
+      userId, instagramAccountId: accountId, mediaId: mediaReadyId,
+      scheduledAtUtc: future(), timezone: "America/Fortaleza",
+    });
+    await expect(
+      updatePost(userId, p.id, { scheduledAtUtc: new Date(Date.now() - 1000) }),
+    ).rejects.toMatchObject({ code: "scheduled_in_past" });
+    await prisma.post.delete({ where: { id: p.id } });
+  });
+
+  it("não edita post já publicado", async () => {
+    const p = await createScheduledPost({
+      userId, instagramAccountId: accountId, mediaId: mediaReadyId,
+      scheduledAtUtc: future(), timezone: "America/Fortaleza",
+    });
+    await prisma.post.update({ where: { id: p.id }, data: { status: "PUBLISHED" } });
+    await expect(
+      updatePost(userId, p.id, { caption: "x" }),
+    ).rejects.toMatchObject({ code: "post_nao_editavel" });
     await prisma.post.delete({ where: { id: p.id } });
   });
 });

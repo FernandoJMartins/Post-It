@@ -105,6 +105,40 @@ export async function duplicatePost(userId: string, postId: string, scheduledAtU
   });
 }
 
+// Editar post agendado (README 69) e remarcar via drag & drop (README 39).
+// Só permite alterar antes de entrar em publicação; valida futuro e conflito.
+export async function updatePost(
+  userId: string,
+  postId: string,
+  patch: { scheduledAtUtc?: Date; caption?: string },
+) {
+  const post = await prisma.post.findFirst({ where: { id: postId, userId, deletedAt: null } });
+  if (!post) throw new HttpError(404, "post_not_found");
+  if (!["DRAFT", "SCHEDULED", "FAILED", "CANCELLED"].includes(post.status)) {
+    throw new HttpError(409, "post_nao_editavel");
+  }
+
+  const data: { scheduledAt?: Date; caption?: string } = {};
+  if (patch.caption !== undefined) data.caption = patch.caption;
+
+  if (patch.scheduledAtUtc) {
+    if (patch.scheduledAtUtc.getTime() <= Date.now()) throw new HttpError(422, "scheduled_in_past");
+    const conflict = await prisma.post.findFirst({
+      where: {
+        instagramAccountId: post.instagramAccountId,
+        scheduledAt: patch.scheduledAtUtc,
+        status: { in: ["SCHEDULED", "QUEUED", "PROCESSING", "PUBLISHING"] },
+        deletedAt: null,
+        id: { not: postId },
+      },
+    });
+    if (conflict) throw new HttpError(409, "time_conflict");
+    data.scheduledAt = patch.scheduledAtUtc;
+  }
+
+  return prisma.post.update({ where: { id: postId }, data });
+}
+
 export async function cancelPost(userId: string, postId: string) {
   const post = await prisma.post.findFirst({ where: { id: postId, userId } });
   if (!post) throw new HttpError(404, "post_not_found");

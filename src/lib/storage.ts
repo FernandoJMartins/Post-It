@@ -9,7 +9,12 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Storage de objetos (README 6, 13, 54). MinIO/S3/R2 via API S3.
+// Producao: Cloudflare R2 (STORAGE_REGION=auto, endpoint <accountid>.r2.cloudflarestorage.com).
+// Dev local: MinIO (docker-compose).
 const bucket = process.env.STORAGE_BUCKET ?? "postador-media";
+
+// R2 e a maioria dos provedores S3 limitam a expiracao de URL assinada a 7 dias.
+const MAX_PRESIGN_SECONDS = 7 * 24 * 3600;
 
 export const s3 = new S3Client({
   region: process.env.STORAGE_REGION ?? "us-east-1",
@@ -40,8 +45,9 @@ export async function presignPut(key: string, contentType: string): Promise<stri
 }
 
 // URL assinada de leitura para preview/publicação.
-export function presignGet(key: string, expiresIn = 7 * 24 * 3600): Promise<string> {
-  return getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn });
+export function presignGet(key: string, expiresIn = MAX_PRESIGN_SECONDS): Promise<string> {
+  const ttl = Math.min(expiresIn, MAX_PRESIGN_SECONDS);
+  return getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: ttl });
 }
 
 export async function deleteObject(key: string): Promise<void> {
