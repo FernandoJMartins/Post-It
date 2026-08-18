@@ -48,6 +48,7 @@ export default async function Dashboard() {
         <a href="/schedule" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-white">+ Agendar</a>
         <a href="/bulk" className="rounded-lg border px-3 py-1.5">Em massa</a>
         <a href="/recurring" className="rounded-lg border px-3 py-1.5">Recorrência</a>
+        <a href="/templates" className="rounded-lg border px-3 py-1.5">Templates</a>
         <a href="/audit" className="rounded-lg border px-3 py-1.5">Auditoria</a>
         <a href="/settings" className="rounded-lg border px-3 py-1.5">⚙️ Config</a>
       </nav>

@@ -11,7 +11,12 @@ type Account = {
   postingEnabled: boolean;
   timezone: string;
   tokenExpiresAt?: string | null;
+  groupId?: string | null;
+  group?: { name: string } | null;
 };
+
+type Group = { id: string; name: string; _count?: { accounts: number } };
+type Quota = { available: boolean; used?: number; quota?: number; remaining?: number };
 
 const STATUS_STYLE: Record<string, string> = {
   CONNECTED: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -24,16 +29,60 @@ const STATUS_STYLE: Record<string, string> = {
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [quotas, setQuotas] = useState<Record<string, Quota>>({});
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const [manual, setManual] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/accounts");
-    if (res.ok) setAccounts(await res.json());
+    const [ra, rg] = await Promise.all([fetch("/api/accounts"), fetch("/api/groups")]);
+    const accs: Account[] = ra.ok ? await ra.json() : [];
+    setAccounts(accs);
+    if (rg.ok) setGroups(await rg.json());
     setLoading(false);
+    // Cota por conta conectada (best-effort).
+    for (const a of accs) {
+      if (a.status === "CONNECTED") {
+        fetch(`/api/accounts/${a.id}/quota`)
+          .then((r) => r.json())
+          .then((q: Quota) => setQuotas((prev) => ({ ...prev, [a.id]: q })))
+          .catch(() => {});
+      }
+    }
   }, []);
+
+  async function createGroup(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const res = await fetch("/api/groups", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: f.get("name") }),
+    });
+    if (res.ok) { (e.target as HTMLFormElement).reset(); load(); }
+  }
+
+  async function assignGroup(id: string, groupId: string) {
+    await fetch(`/api/accounts/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ groupId: groupId || null }),
+    });
+    load();
+  }
+
+  async function copySettings(id: string, fromId: string) {
+    if (!fromId) return;
+    const res = await fetch(`/api/accounts/${id}/copy-settings`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ fromId }),
+    });
+    setMsg(res.ok ? "Configurações copiadas." : "Falha ao copiar configurações.");
+    load();
+  }
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -109,6 +158,23 @@ export default function AccountsPage() {
         </form>
       </div>
 
+      <div className="mb-6 rounded-xl border p-4 dark:border-neutral-800">
+        <div className="mb-2 text-sm font-medium">Grupos de contas</div>
+        <form onSubmit={createGroup} className="mb-2 flex gap-2">
+          <input name="name" required placeholder="Novo grupo (ex: Clientes)" className="rounded-lg border px-3 py-1.5 text-sm dark:bg-neutral-900" />
+          <button className="rounded-lg border px-3 py-1.5 text-sm">Criar grupo</button>
+        </form>
+        {groups.length > 0 && (
+          <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
+            {groups.map((g) => (
+              <span key={g.id} className="rounded-full bg-neutral-100 px-2 py-0.5 dark:bg-neutral-800">
+                {g.name} ({g._count?.accounts ?? 0})
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
       {loading ? (
         <p className="text-neutral-500">Carregando…</p>
       ) : accounts.length === 0 ? (
@@ -136,6 +202,34 @@ export default function AccountsPage() {
                     </span>
                     {!a.postingEnabled && <span className="text-yellow-600">⏸ pausada</span>}
                     <span>{a.timezone}</span>
+                    {quotas[a.id]?.available && (
+                      <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">
+                        {quotas[a.id].used}/{quotas[a.id].quota} hoje
+                      </span>
+                    )}
+                    {a.group && <span className="text-neutral-400">· {a.group.name}</span>}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <select
+                      value={a.groupId ?? ""}
+                      onChange={(e) => assignGroup(a.id, e.target.value)}
+                      className="rounded border px-1.5 py-0.5 text-xs dark:bg-neutral-900"
+                    >
+                      <option value="">Sem grupo</option>
+                      {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
+                    {accounts.length > 1 && (
+                      <select
+                        defaultValue=""
+                        onChange={(e) => copySettings(a.id, e.target.value)}
+                        className="rounded border px-1.5 py-0.5 text-xs dark:bg-neutral-900"
+                      >
+                        <option value="">Copiar config de…</option>
+                        {accounts.filter((x) => x.id !== a.id).map((x) => (
+                          <option key={x.id} value={x.id}>{x.username}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
               </div>

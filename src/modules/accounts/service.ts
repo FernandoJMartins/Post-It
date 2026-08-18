@@ -19,6 +19,8 @@ export function listAccounts(userId: string) {
       tokenExpiresAt: true,
       lastSyncAt: true,
       createdAt: true,
+      groupId: true,
+      group: { select: { name: true } },
     },
   });
 }
