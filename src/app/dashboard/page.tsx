@@ -24,13 +24,24 @@ export default async function Dashboard() {
 
   return (
     <main className="mx-auto max-w-4xl p-6">
-      <h1 className="mb-6 text-2xl font-bold">Dashboard</h1>
+      <h1 className="mb-4 text-2xl font-bold">Dashboard</h1>
+
+      <nav className="mb-6 flex flex-wrap gap-2 text-sm">
+        <a href="/accounts" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-white">Contas</a>
+        <a href="/accounts" className="rounded-lg border px-3 py-1.5 opacity-60">Mídia (em breve)</a>
+        <a href="/accounts" className="rounded-lg border px-3 py-1.5 opacity-60">Agendar (em breve)</a>
+      </nav>
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-xl border p-4 dark:border-neutral-800">
+          <a
+            key={c.label}
+            href={c.label === "Contas" ? "/accounts" : "#"}
+            className="rounded-xl border p-4 dark:border-neutral-800"
+          >
             <div className="text-3xl font-bold">{c.value}</div>
             <div className="text-sm text-neutral-500">{c.label}</div>
-          </div>
+          </a>
         ))}
       </div>
     </main>
